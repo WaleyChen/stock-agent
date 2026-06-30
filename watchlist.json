@@ -26,6 +26,24 @@
       "armed": true,
       "last_fired": null,
       "note": "Single-day flush"
+    },
+    {
+      "id": "adbe-below-200",
+      "ticker": "ADBE",
+      "condition": "below",
+      "price": 200.00,
+      "armed": true,
+      "last_fired": null,
+      "note": "Support / entry zone"
+    },
+    {
+      "id": "adbe-above-210",
+      "ticker": "ADBE",
+      "condition": "above",
+      "price": 210.00,
+      "armed": true,
+      "last_fired": null,
+      "note": "Breakout / resistance"
     }
   ]
 }

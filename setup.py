@@ -12,6 +12,8 @@ from pathlib import Path
 
 from anthropic import Anthropic
 
+from load_env import load_env
+
 
 SYSTEM_PROMPT = """You are a stock research analyst and price-alert monitor.
 
@@ -57,6 +59,25 @@ Workflow:
    tickers checked, prices observed, and alerts fired.
 7. Reply with one line: "Checked N tickers, M alerts fired."
 
+## Daily Digest Mode
+Triggered when the kickoff message contains "run daily digest".
+
+Workflow:
+1. cd /workspace/watchlist && cat watchlist.json
+2. Collect unique tickers from all alert entries. For each, fetch current price via
+   web_fetch on https://finance.yahoo.com/quote/{TICKER} (fin-streamer,
+   data-field="regularMarketPrice").
+3. Send exactly ONE Pushover notification (priority=0) via the NOTIFICATION CHANNEL
+   block below:
+   - title: "Watchlist Daily"
+   - message: one line per ticker with price; then one line listing armed alerts
+     and their trigger (e.g. "NVDA armed: above $1500"). Keep the full message
+     under 512 characters; truncate with "…" if needed.
+   - url: https://github.com (or omit url field)
+4. Do not modify watchlist.json or git commit — this run is read-only.
+5. Write a summary to /mnt/session/outputs/run-summary.md.
+6. Reply with one line: "Daily digest sent for N tickers."
+
 ## Notification Channel — Pushover
 (Swap this entire section to switch providers. The rest of the prompt should
 remain unchanged.)
@@ -73,7 +94,8 @@ To send one notification, run:
       https://api.pushover.net/1/messages.json
 
 Priority guide:
-- priority=1 for normal alerts (bypasses Do Not Disturb)
+- priority=0 for daily digest (normal notification)
+- priority=1 for price alerts (bypasses Do Not Disturb)
 - priority=2 for extreme moves (>10% intraday); requires user ack
   When using priority=2, also send: --form-string "retry=60" --form-string "expire=600"
 
@@ -96,6 +118,7 @@ def require(name: str) -> str:
 
 
 def main() -> None:
+    load_env()
     client = Anthropic()
 
     print("Creating agent...")
@@ -121,7 +144,7 @@ def main() -> None:
         )
 
     print("Creating vault...")
-    vault = client.beta.vaults.create(name="stock-research-secrets")
+    vault = client.beta.vaults.create(display_name="stock-research-secrets")
     print(f"  vault.id = {vault.id}")
 
     # Channel-agnostic names so the system prompt doesn't change when you
@@ -136,9 +159,16 @@ def main() -> None:
     for name, value in credentials.items():
         client.beta.vaults.credentials.create(
             vault_id=vault.id,
-            name=name,
-            type="environment_variable",
-            value=value,
+            display_name=name,
+            auth={
+                "type": "environment_variable",
+                "secret_name": name,
+                "secret_value": value,
+                "networking": {
+                    "type": "limited",
+                    "allowed_hosts": ["api.pushover.net"],
+                },
+            },
         )
         print(f"  + {name}")
 
@@ -149,7 +179,8 @@ def main() -> None:
         f"VAULT_ID={vault.id}\n"
     )
     print(f"\nIDs saved to {ids}")
-    print("Next: python research.py \"<question>\"  or  python deploy_alerts.py")
+    print("Next: python research.py \"<question>\"")
+    print("       python deploy_alerts.py  &&  python deploy_daily_digest.py")
 
 
 if __name__ == "__main__":

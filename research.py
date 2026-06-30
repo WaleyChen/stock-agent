@@ -10,6 +10,8 @@ from pathlib import Path
 
 from anthropic import Anthropic
 
+from load_env import load_env
+
 
 def load_ids() -> dict[str, str]:
     env_file = Path(__file__).parent / ".env.ids"
@@ -23,6 +25,7 @@ def load_ids() -> dict[str, str]:
 
 
 def main() -> None:
+    load_env()
     if len(sys.argv) < 2:
         sys.exit('Usage: python research.py "<your question>"')
 

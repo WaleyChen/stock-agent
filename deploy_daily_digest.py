@@ -1,10 +1,10 @@
-"""Create the scheduled price-alert deployment.
+"""Create the daily watchlist digest deployment.
 
-Schedule: every 15 min during US market hours (1300-2059 UTC, Mon-Fri).
-Adjust CRON_EXPRESSION / CRON_TIMEZONE if you trade other markets.
+Schedule: once per day at 17:00 America/New_York (after US market close).
+Sends a single Pushover summary of watchlist prices and armed alerts.
 
-Requires WATCHLIST_REPO_URL and GITHUB_TOKEN env vars. The repo must contain
-a watchlist.json file (use watchlist.example.json as a template).
+Requires the same env vars as deploy_alerts.py. Run update_agent.py first if
+you set up before daily digest was added to the system prompt.
 """
 
 from __future__ import annotations
@@ -17,17 +17,15 @@ from anthropic import Anthropic
 
 from load_env import load_env
 
-
-# Every 15 min, 13:00–20:59 UTC, Mon–Fri (US market hours in UTC).
-# Day-of-week: 1=Mon … 5=Fri (text names like MON-FRI are not supported).
-CRON_EXPRESSION = "*/15 13-20 * * 1-5"
-CRON_TIMEZONE = "UTC"
+# 5pm ET every day — digest after the US cash session.
+CRON_EXPRESSION = "0 17 * * *"
+CRON_TIMEZONE = "America/New_York"
 WATCHLIST_MOUNT_PATH = "/workspace/watchlist"
 KICKOFF_PROMPT = (
-    "run alert check. Read /workspace/watchlist/watchlist.json, evaluate each "
-    "armed alert, send Pushover notifications for any that fired, commit the "
-    "updated watchlist.json back to the repo, and write a run summary to "
-    "/mnt/session/outputs/run-summary.md."
+    "run daily digest. Read /workspace/watchlist/watchlist.json, fetch current "
+    "prices for every ticker in the watchlist, send one Pushover summary "
+    "notification, and write a run summary to "
+    "/mnt/session/outputs/run-summary.md. Do not modify watchlist.json."
 )
 
 
@@ -57,13 +55,11 @@ def main() -> None:
     if not hasattr(client.beta, "deployments"):
         sys.exit(
             "anthropic SDK is missing client.beta.deployments. "
-            "Upgrade with: pip install -U anthropic, "
-            "or fall back to raw HTTP against POST /v1/deployments with "
-            "anthropic-beta: managed-agents-2026-04-01."
+            "Upgrade with: pip install -U anthropic"
         )
 
     deployment = client.beta.deployments.create(
-        name="stock-price-alerts",
+        name="stock-daily-digest",
         agent=ids["AGENT_ID"],
         environment_id=ids["ENVIRONMENT_ID"],
         vault_ids=[ids["VAULT_ID"]],
@@ -87,8 +83,8 @@ def main() -> None:
     print(f"Schedule:   {CRON_EXPRESSION} ({CRON_TIMEZONE})")
     print(f"Watchlist:  {repo_url}")
     print()
-    print("Test a single run now with the ant CLI:")
-    print(f"  ant beta:deployments run --deployment-id {deployment.id}")
+    print("Test a single run now:")
+    print(f"  python -c \"from anthropic import Anthropic; from load_env import load_env; load_env(); Anthropic().beta.deployments.run('{deployment.id}')\"")
 
 
 if __name__ == "__main__":
