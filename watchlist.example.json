@@ -1,0 +1,31 @@
+{
+  "alerts": [
+    {
+      "id": "nvda-above-1500",
+      "ticker": "NVDA",
+      "condition": "above",
+      "price": 1500.00,
+      "armed": true,
+      "last_fired": null,
+      "note": "Long-term resistance"
+    },
+    {
+      "id": "aapl-below-180",
+      "ticker": "AAPL",
+      "condition": "below",
+      "price": 180.00,
+      "armed": true,
+      "last_fired": null,
+      "note": "DCA entry zone"
+    },
+    {
+      "id": "tsla-drop-5pct",
+      "ticker": "TSLA",
+      "condition": "pct_change_below",
+      "price": -5.0,
+      "armed": true,
+      "last_fired": null,
+      "note": "Single-day flush"
+    }
+  ]
+}
